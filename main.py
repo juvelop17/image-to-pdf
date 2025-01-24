@@ -71,8 +71,6 @@ def main():
     quality = args.quality
 
     converter = WebpConverter(input_path, output_path, quality)
-    # converter.convert_to_webp()
-    # converter.convert_to_pdf()
     converter.convert()
 
 

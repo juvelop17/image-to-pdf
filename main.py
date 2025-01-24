@@ -1,10 +1,8 @@
-import os
 import argparse
+import os
 from io import BytesIO
 
 from PIL import Image
-
-import img2pdf
 
 
 class WebpConverter:
@@ -52,7 +50,7 @@ class WebpConverter:
     #         output_pdf = os.path.join(self.output_path, 'out.pdf')
     #         webp_images[0].save(output_pdf, save_all=True, append_images=webp_images[1:], quality=self.quality)
 
-    def __convert_image_buffer(self, file_name, input_file):
+    def __convert_image(self, file_name, input_file):
         buffer = BytesIO()
         try:
             with Image.open(input_file) as img:
@@ -65,16 +63,16 @@ class WebpConverter:
         return buffer
 
     def convert_to_jpg(self):
-        buffers = []
+        converted_images = []
         condition = lambda file_name: file_name.lower().endswith(self.supported_formats)
         file_list = list(filter(condition, os.listdir(self.input_path)))
         file_list.sort()
         for idx, file_name in enumerate(file_list):
             input_file = os.path.join(self.input_path, file_name)
-            buffer = self.__convert_image_buffer(file_name, input_file)
-            buffers.append(buffer)
+            buffer = self.__convert_image(file_name, input_file)
+            converted_images.append(buffer)
             print(f"Processing {file_name} at {idx + 1}/{len(file_list)}")
-        return buffers
+        return converted_images
 
     def convert_to_pdf(self, buffers):
         images = []
@@ -112,7 +110,7 @@ def main():
     parser = argparse.ArgumentParser(description="Convert images to WebP format.")
     parser.add_argument("input_path", type=str, help="Input file or directory")
     parser.add_argument("-o", "--output_path", type=str, help="Output directory")
-    parser.add_argument("-q", "--quality", type=int, default=85, help="Quality of WebP (default: 80)")
+    parser.add_argument("-q", "--quality", type=int, default=85, help="Quality of WebP (default: 85)")
     args = parser.parse_args()
 
     input_path = args.input_path

@@ -2,7 +2,7 @@
 
 ## Overview
 
-**ImageEnhancerPDF** is a powerful tool designed to enhance image readability and generate high-quality PDFs with
+**image-to-pdf** is a powerful tool designed to enhance image readability and generate high-quality PDFs with
 precise specifications. Whether you're preparing documents for presentations, reports, or publications, this program
 ensures your images are optimally processed and compiled into professional-grade PDFs.
 
@@ -31,8 +31,8 @@ ensures your images are optimally processed and compiled into professional-grade
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/yourusername/ImageEnhancerPDF.git
-   cd ImageEnhancerPDF
+   git clone https://github.com/juvelop17/image-to-pdf.git
+   cd image-to-pdf
    ```
 
 2. **Create a Virtual Environment**
@@ -69,7 +69,7 @@ and compiles them into `enhanced_output.pdf` located in the `./documents` folder
 
 #### Console output
 
-```
+```bash
 Checking 9 images...
 100%|██████████| 9/9 [00:00<00:00, 23.02it/s]
 Processing 9 images...

@@ -12,7 +12,7 @@ class PDFConverter:
         self.input_path = args.input_path
         self.output_path = args.output_path if args.output_path else os.path.join(args.input_path, 'out')
         self.quality = args.quality
-        self.dpi = args.dpi
+        self.resize_ratio = args.resize_ratio
         self.method = 6  # Quality/speed trade-off (0=fast, 6=slower-better). Defaults to 4.
         self.crop_ratio = 0.015
         self.contrast = 1.1
@@ -54,13 +54,8 @@ class PDFConverter:
 
     def __resize_image(self, image):
         cur_width, cur_height = image.size
-        original_dpi = image.info.get("dpi", None)
-        if original_dpi is None:
-            return image
-        x_dpi, y_dpi = original_dpi
-        ratio = self.dpi / x_dpi
-        width = int(cur_width * ratio)
-        height = int(cur_height * ratio)
+        width = int(cur_width * self.resize_ratio)
+        height = int(cur_height * self.resize_ratio)
         return image.resize((width, height), Image.Resampling.LANCZOS)
 
     def __save_image(self, image, image_file):
@@ -69,7 +64,6 @@ class PDFConverter:
         image.save(image_path,
                    format='JPEG',
                    quality=self.quality,
-                   dpi=(self.dpi, self.dpi),
                    progressive=True)
 
     def __convert_image(self, file_name, input_file):
@@ -83,7 +77,6 @@ class PDFConverter:
                 image.save(temp_image,
                            format='JPEG',
                            quality=self.quality,
-                           dpi=(self.dpi, self.dpi),
                            progressive=True)
         except Exception as e:
             print(f"Failed to convert {file_name}: {e}")
@@ -138,7 +131,8 @@ def main():
     parser.add_argument("input_path", type=str, help="Input file or directory")
     parser.add_argument("-o", "--output_path", type=str, help="Output directory")
     parser.add_argument("-q", "--quality", type=int, default=85, help="Quality of image (default: 85)")
-    parser.add_argument("-d", "--dpi", type=int, default=300, help="DPI of image (default: 300)")
+    parser.add_argument("-r", "--resize_ratio", type=int, default=0.5,
+                        help="Resizes the image by multiplying its dimensions with the specified scale factor")
     args = parser.parse_args()
 
     converter = PDFConverter(args)

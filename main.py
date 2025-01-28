@@ -1,6 +1,7 @@
 import argparse
 import os
 from io import BytesIO
+from multiprocessing import Pool, cpu_count
 
 from PIL import Image, ImageEnhance, ImageFilter
 
@@ -19,14 +20,11 @@ class PDFConverter:
         self.max_width = 0
         self.max_height = 0
 
-    def __check_image_size(self, input_file):
+    def check_image_size(self, input_file):
         with Image.open(input_file) as image:
             image = self.__crop_image(image)
             width, height = image.size
-            if width > self.max_width:
-                self.max_width = width
-            if height > self.max_height:
-                self.max_height = height
+            return width, height
 
     def __crop_image(self, image):
         width, height = image.size
@@ -45,7 +43,7 @@ class PDFConverter:
         width, height = image.size
         if (self.max_width / width > 1.1) or (self.max_height / height > 1.1):
             self.anomaly_detected_size = True
-        print(f'current image size: {width}x{height}, max image size: {self.max_width}x{self.max_height}')
+        # print(f'current image size ratio: {round(self.max_width / width, 3)}, {round(self.max_height / height, 3)}')
         left = (self.max_width - width) // 2
         top = (self.max_height - height) // 2
         new_image = Image.new('RGB', (self.max_width, self.max_height), (255, 255, 255))
@@ -66,10 +64,11 @@ class PDFConverter:
                    quality=self.quality,
                    progressive=True)
 
-    def __convert_image(self, file_name, input_file):
+    def convert_image(self, file_path):
+        print(f"Processing {file_path}")
         temp_image = BytesIO()
         try:
-            with Image.open(input_file) as image:
+            with Image.open(file_path) as image:
                 image = self.__crop_image(image)
                 image = self.__enhance_image(image)
                 image = self.__add_border(image)
@@ -79,23 +78,29 @@ class PDFConverter:
                            quality=self.quality,
                            progressive=True)
         except Exception as e:
-            print(f"Failed to convert {file_name}: {e}")
+            print(f"Failed to convert {file_path}: {e}")
         return temp_image
 
     def __convert_to_jpg(self):
-        converted_images = []
+        images = []
         condition = lambda file_name: file_name.lower().endswith(self.supported_formats)
         file_list = list(filter(condition, os.listdir(self.input_path)))
         file_list.sort()
-        for file_name in file_list:
-            input_file = os.path.join(self.input_path, file_name)
-            self.__check_image_size(input_file)
-        for idx, file_name in enumerate(file_list):
-            input_file = os.path.join(self.input_path, file_name)
-            temp_image = self.__convert_image(file_name, input_file)
-            converted_images.append(temp_image)
-            print(f"Processing {file_name} at {idx + 1}/{len(file_list)}")
-        return converted_images
+
+        pool_size = cpu_count()
+        with Pool(pool_size) as pool:
+            file_paths = map(lambda _file_name: os.path.join(self.input_path, _file_name), file_list)
+            async_result = pool.map_async(self.check_image_size, file_paths)
+            results = async_result.get()
+            widths, heights = zip(*results)
+            self.max_width = max(widths)
+            self.max_height = max(heights)
+        with Pool(pool_size) as pool:
+            file_paths = map(lambda _file_name: os.path.join(self.input_path, _file_name), file_list)
+            async_result = pool.map_async(self.convert_image, file_paths)
+            results = async_result.get()
+            images.extend(results)
+        return images
 
     def __convert_to_pdf(self, temp_images):
         output_pdf = os.path.join(self.output_path, 'output.pdf')

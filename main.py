@@ -80,40 +80,44 @@ class PDFConverter:
             print(f"Failed to convert {file_path}: {e}")
         return temp_image
 
-    def __check_images(self, file_list):
+    def __check_images(self, input_path, file_list):
         print(f"Checking {len(file_list)} images...")
         widths = []
         heights = []
         pool_size = cpu_count()
-        file_paths = list(map(lambda file_name: os.path.join(self.input_path, file_name), file_list))
+        file_paths = list(map(lambda file_name: os.path.join(input_path, file_name), file_list))
         with Pool(pool_size) as pool:
             results = pool.imap(self.check_image_size, file_paths)
             for result in tqdm.tqdm(results, total=len(file_paths)):
                 widths.append(result[0]), heights.append(result[1])
-        self.max_width = max(widths)
-        self.max_height = max(heights)
+        if widths:
+            self.max_width = max(widths)
+        if heights:
+            self.max_height = max(heights)
         return file_paths, pool_size
 
-    def __convert_images(self, file_list):
+    def __convert_images(self, input_path, file_list):
         print(f"Processing {len(file_list)} images...")
         images = []
         pool_size = cpu_count()
-        file_paths = list(map(lambda file_name: os.path.join(self.input_path, file_name), file_list))
+        file_paths = list(map(lambda file_name: os.path.join(input_path, file_name), file_list))
         with Pool(pool_size) as pool:
             results = pool.imap(self.convert_image, file_paths)
             for result in tqdm.tqdm(results, total=len(file_paths)):
                 images.append(result)
         return images
 
-    def __convert_to_jpg(self):
-        condition = lambda file_name: file_name.lower().endswith(self.supported_formats)
-        file_list = list(filter(condition, os.listdir(self.input_path)))
-        file_list.sort()
-        self.__check_images(file_list)
-        return self.__convert_images(file_list)
+    def __extension_filter(self, file_name):
+        return file_name.lower().endswith(self.supported_formats)
 
-    def __convert_to_pdf(self, temp_images):
-        output_pdf = os.path.join(self.output_path, 'output.pdf')
+    def __convert_to_jpg(self, input_path):
+        file_list = list(filter(self.__extension_filter, os.listdir(input_path)))
+        file_list.sort()
+        self.__check_images(input_path, file_list)
+        return self.__convert_images(input_path, file_list)
+
+    def __convert_to_pdf(self, temp_images, output_name):
+        output_pdf = os.path.join(self.output_path, f'{output_name}.pdf')
         images = []
         for temp_image in temp_images:
             img = Image.open(temp_image)
@@ -129,16 +133,28 @@ class PDFConverter:
         for img in images:
             img.close()
 
-    def __check_anomaly(self):
+    def __check_anomaly(self, input_path):
         if self.anomaly_detected_size:
-            print("Anomaly Detected: size anomaly")
+            print(f"Anomaly Detected: size anomaly. {input_path}")
+            self.anomaly_detected_size = False
+
+    def __process(self, input_path):
+        output_name = os.path.basename(input_path)
+        jpg_images = self.__convert_to_jpg(input_path)
+        self.__convert_to_pdf(jpg_images, output_name)
+        self.__check_anomaly(input_path)
 
     def convert(self):
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
-        jpg_images = self.__convert_to_jpg()
-        self.__convert_to_pdf(jpg_images)
-        self.__check_anomaly()
+        directory = [os.path.abspath(self.input_path)]
+        for entry in os.listdir(self.input_path):
+            path = os.path.join(self.input_path, entry)
+            if os.path.isdir(path):
+                directory.append(path)
+        for d in directory:
+            print(f"Begin converting... {d}")
+            self.__process(d)
 
 
 def main():
